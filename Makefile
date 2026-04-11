@@ -2,7 +2,7 @@ PREFIX ?= $(HOME)/.local
 BIN_DIR ?= $(PREFIX)/bin
 CONFIG_DIR ?= $(HOME)/.config/meld
 
-.PHONY: build release test run diagnostics install install-config install-config-force update update-config uninstall clean
+.PHONY: build release test run diagnostics install install-config install-config-force update update-with-config update-config uninstall clean
 
 build:
 	cargo build --release
@@ -30,6 +30,9 @@ install-config-force:
 
 update:
 	./scripts/update.sh --prefix "$(PREFIX)" --config-dir "$(CONFIG_DIR)"
+
+update-with-config:
+	./scripts/update.sh --prefix "$(PREFIX)" --config-dir "$(CONFIG_DIR)" --update-config
 
 update-config:
 	./scripts/update-config.sh --config-dir "$(CONFIG_DIR)"

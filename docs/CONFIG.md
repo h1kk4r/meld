@@ -121,6 +121,56 @@ Values:
 - `lower`
 - `upper`
 
+## Extra Output
+
+Use `config.output` to print text or shell command output before/after the whole Meld block:
+
+```lua
+config.output = {
+  before = {
+    "hello",
+    { command = "date '+%H:%M'" },
+    "this text appears after the command",
+  },
+  after = {
+    "\n",
+  },
+}
+```
+
+Commands run through `$SHELL -lc` during normal rendering. Prefer this over `print("hello")` in `init.lua`, because direct Lua prints happen while Meld parses the config and can leak into `--diagnostics` or `--print-config`.
+
+`"\n"` is a valid way to add one empty line after the rendered block.
+
+This duplicate-key form does not work in Lua, because the first `text` is overwritten before Meld reads the config:
+
+```lua
+before = {
+  text = "hello",
+  command = "ls",
+  text = "this is ls command",
+}
+```
+
+Use the ordered list form instead:
+
+```lua
+before = {
+  "hello",
+  { command = "ls" },
+  "this is ls command",
+}
+```
+
+The old simple form still works for one text and one command:
+
+```lua
+before = {
+  text = "hello",
+  command = "ls",
+}
+```
+
 ## Visuals
 
 ASCII logo preset:

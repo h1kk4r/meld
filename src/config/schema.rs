@@ -63,6 +63,7 @@ pub struct AppConfig {
     pub git_view: GitView,
     pub spotify: SpotifyConfig,
     pub system_views: SystemRenderConfig,
+    pub output: OutputConfig,
     pub layout: LayoutConfig,
     pub labels: LineLabels,
     pub colors: TextColors,
@@ -92,6 +93,23 @@ pub struct LineLabels {
     pub display: String,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct OutputConfig {
+    pub before: OutputHookConfig,
+    pub after: OutputHookConfig,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct OutputHookConfig {
+    pub items: Vec<OutputItemConfig>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OutputItemConfig {
+    Text(String),
+    Command(String),
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -99,6 +117,7 @@ impl Default for AppConfig {
             git_view: GitView::default(),
             spotify: SpotifyConfig::default(),
             system_views: SystemRenderConfig::default(),
+            output: OutputConfig::default(),
             layout: LayoutConfig::default(),
             labels: LineLabels::default(),
             colors: TextColors::default(),

@@ -13,7 +13,9 @@ use crate::render::layout::LayoutConfig;
 use crate::render::logo::{LogoConfig, LogoPreset, LogoSize};
 use crate::render::style::{ColorSpec, TextCase, TextColors, TextStyleConfig};
 
-use super::schema::{AppConfig, LineKey, LineLabels};
+use super::schema::{
+    AppConfig, LineKey, LineLabels, OutputConfig, OutputHookConfig, OutputItemConfig,
+};
 
 pub(crate) fn parse_source(source: &str, chunk_name: &str) -> AppResult<AppConfig> {
     let lua = Lua::new();
@@ -52,6 +54,10 @@ fn parse_table(table: Table) -> AppResult<AppConfig> {
 
     if let Some(text) = table.get::<Option<Table>>("text")? {
         parse_text_style(&mut config.text_style, text)?;
+    }
+
+    if let Some(output) = table.get::<Option<Value>>("output")? {
+        parse_output(&mut config.output, output)?;
     }
 
     if let Some(labels) = table.get::<Option<Table>>("labels")? {
@@ -171,6 +177,193 @@ fn parse_text_style(text_style: &mut TextStyleConfig, table: Table) -> AppResult
     }
 
     Ok(())
+}
+
+fn parse_output(output: &mut OutputConfig, value: Value) -> AppResult<()> {
+    match value {
+        Value::Nil | Value::Boolean(false) => {
+            *output = OutputConfig::default();
+            Ok(())
+        }
+        Value::Table(table) => {
+            for pair in table.pairs::<String, Value>() {
+                let (key, value) = pair?;
+
+                match key.as_str() {
+                    "before" => parse_output_hook(&mut output.before, "output.before", value)?,
+                    "after" => parse_output_hook(&mut output.after, "output.after", value)?,
+                    _ => {
+                        return Err(AppError::Config(format!(
+                            "unknown key `{}` in `output` table",
+                            key
+                        )));
+                    }
+                }
+            }
+
+            Ok(())
+        }
+        _ => Err(AppError::Config(
+            "`output` must be a table or false in init.lua".to_string(),
+        )),
+    }
+}
+
+fn parse_output_hook(hook: &mut OutputHookConfig, key: &str, value: Value) -> AppResult<()> {
+    match value {
+        Value::Nil | Value::Boolean(false) => {
+            *hook = OutputHookConfig::default();
+            Ok(())
+        }
+        Value::String(text) => {
+            hook.items = parse_text_value(text.to_str()?.as_ref())
+                .map(OutputItemConfig::Text)
+                .into_iter()
+                .collect();
+            Ok(())
+        }
+        Value::Table(table) => {
+            hook.items = parse_output_hook_table(key, table)?;
+            Ok(())
+        }
+        _ => Err(AppError::Config(format!(
+            "`{}` must be a string, table, or false in init.lua",
+            key
+        ))),
+    }
+}
+
+fn parse_output_hook_table(key: &str, table: Table) -> AppResult<Vec<OutputItemConfig>> {
+    let sequence_len = table.raw_len();
+
+    if sequence_len > 0 {
+        let mut items = Vec::new();
+
+        for index in 1..=sequence_len {
+            let value = table.get::<Value>(index)?;
+            items.extend(parse_output_item(&format!("{key}[{index}]"), value)?);
+        }
+
+        for pair in table.pairs::<Value, Value>() {
+            let (field, _) = pair?;
+
+            if let Value::String(field) = field {
+                return Err(AppError::Config(format!(
+                    "`{}` mixes ordered items with keyed field `{}`; use only the ordered list form",
+                    key,
+                    field.to_str()?
+                )));
+            }
+        }
+
+        return Ok(items);
+    }
+
+    let mut text = None;
+    let mut command = None;
+
+    for pair in table.pairs::<String, Value>() {
+        let (field, value) = pair?;
+
+        match field.as_str() {
+            "text" => text = parse_optional_text(&format!("{key}.text"), value)?,
+            "command" => command = parse_optional_command(&format!("{key}.command"), value)?,
+            _ => {
+                return Err(AppError::Config(format!(
+                    "unknown key `{}` in `{}` table",
+                    field, key
+                )));
+            }
+        }
+    }
+
+    let mut items = Vec::new();
+
+    if let Some(text) = text {
+        items.push(OutputItemConfig::Text(text));
+    }
+
+    if let Some(command) = command {
+        items.push(OutputItemConfig::Command(command));
+    }
+
+    Ok(items)
+}
+
+fn parse_output_item(key: &str, value: Value) -> AppResult<Vec<OutputItemConfig>> {
+    match value {
+        Value::Nil | Value::Boolean(false) => Ok(Vec::new()),
+        Value::String(text) => Ok(parse_text_value(text.to_str()?.as_ref())
+            .map(OutputItemConfig::Text)
+            .into_iter()
+            .collect()),
+        Value::Table(table) => {
+            let mut text = None;
+            let mut command = None;
+
+            for pair in table.pairs::<String, Value>() {
+                let (field, value) = pair?;
+
+                match field.as_str() {
+                    "text" => text = parse_optional_text(&format!("{key}.text"), value)?,
+                    "command" => {
+                        command = parse_optional_command(&format!("{key}.command"), value)?
+                    }
+                    _ => {
+                        return Err(AppError::Config(format!(
+                            "unknown key `{}` in `{}` item",
+                            field, key
+                        )));
+                    }
+                }
+            }
+
+            let mut items = Vec::new();
+
+            if let Some(text) = text {
+                items.push(OutputItemConfig::Text(text));
+            }
+
+            if let Some(command) = command {
+                items.push(OutputItemConfig::Command(command));
+            }
+
+            Ok(items)
+        }
+        _ => Err(AppError::Config(format!(
+            "`{}` must be a string, command table, text table, or false in init.lua",
+            key
+        ))),
+    }
+}
+
+fn parse_optional_text(key: &str, value: Value) -> AppResult<Option<String>> {
+    match value {
+        Value::Nil | Value::Boolean(false) => Ok(None),
+        Value::String(text) => Ok(parse_text_value(text.to_str()?.as_ref())),
+        _ => Err(AppError::Config(format!(
+            "`{}` must be a string or false in init.lua",
+            key
+        ))),
+    }
+}
+
+fn parse_optional_command(key: &str, value: Value) -> AppResult<Option<String>> {
+    match value {
+        Value::Nil | Value::Boolean(false) => Ok(None),
+        Value::String(text) => {
+            let command = text.to_str()?.trim().to_string();
+            Ok((!command.is_empty()).then_some(command))
+        }
+        _ => Err(AppError::Config(format!(
+            "`{}` must be a string or false in init.lua",
+            key
+        ))),
+    }
+}
+
+fn parse_text_value(value: &str) -> Option<String> {
+    (!value.is_empty()).then_some(value.to_string())
 }
 
 fn parse_labels(labels: &mut LineLabels, table: Table) -> AppResult<()> {
@@ -599,7 +792,7 @@ fn invalid_view(key: &str, value: &str) -> AppError {
 #[cfg(test)]
 mod tests {
     use super::{parse_line_key, parse_order, parse_source};
-    use crate::config::LineKey;
+    use crate::config::{LineKey, OutputItemConfig};
     use crate::modules::git::GitView;
     use crate::modules::spotify::SpotifyConfig;
     use crate::modules::system::{MemoryView, SystemField};
@@ -683,6 +876,87 @@ config.memory = "used_total"
 
         assert!(matches!(config.git_view, GitView::Branch));
         assert!(matches!(config.system_views.memory, MemoryView::UsedTotal));
+    }
+
+    #[test]
+    fn parses_output_hooks() {
+        let config = parse_source(
+            r#"
+return {
+  output = {
+    before = "hello",
+    after = {
+      text = "bye",
+      command = "printf done",
+    },
+  },
+}
+"#,
+            "init.lua",
+        )
+        .unwrap();
+
+        assert_eq!(
+            config.output.before.items,
+            vec![OutputItemConfig::Text("hello".to_string())]
+        );
+        assert_eq!(
+            config.output.after.items,
+            vec![
+                OutputItemConfig::Text("bye".to_string()),
+                OutputItemConfig::Command("printf done".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn parses_ordered_output_hook_items() {
+        let config = parse_source(
+            r#"
+return {
+  output = {
+    before = {
+      "hello",
+      { command = "printf command" },
+      { text = "this is ls command" },
+    },
+  },
+}
+"#,
+            "init.lua",
+        )
+        .unwrap();
+
+        assert_eq!(
+            config.output.before.items,
+            vec![
+                OutputItemConfig::Text("hello".to_string()),
+                OutputItemConfig::Command("printf command".to_string()),
+                OutputItemConfig::Text("this is ls command".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn preserves_output_hook_newline_text() {
+        let config = parse_source(
+            r#"
+return {
+  output = {
+    after = {
+      text = "\n",
+    },
+  },
+}
+"#,
+            "init.lua",
+        )
+        .unwrap();
+
+        assert_eq!(
+            config.output.after.items,
+            vec![OutputItemConfig::Text("\n".to_string())]
+        );
     }
 
     #[test]

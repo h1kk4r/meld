@@ -3,6 +3,7 @@ mod cli;
 mod config;
 mod error;
 mod modules;
+mod output;
 mod render;
 mod util;
 

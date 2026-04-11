@@ -83,8 +83,13 @@ pub fn run(cli: Cli) -> AppResult<()> {
         spotify.as_ref(),
         &config.blocks,
     )?;
+    let output = crate::output::compose(&config.output, &output)?;
     if !output.is_empty() {
-        println!("{output}");
+        if output.ends_with('\n') {
+            print!("{output}");
+        } else {
+            println!("{output}");
+        }
     }
 
     Ok(())
@@ -208,6 +213,14 @@ fn print_diagnostics(current_dir: &std::path::Path, loaded: &LoadedConfig) {
         }
     );
     println!("Text Case         : {:?}", config.text_style.case);
+    println!(
+        "Output Before    : {}",
+        output_hook_summary(&config.output.before)
+    );
+    println!(
+        "Output After     : {}",
+        output_hook_summary(&config.output.after)
+    );
     println!("Visual Backends   : {}", backend_plan.summary());
     println!(
         "WezTerm Session   : {}",
@@ -241,6 +254,21 @@ fn print_diagnostics(current_dir: &std::path::Path, loaded: &LoadedConfig) {
             .map(|info| info.format_value(&config.spotify.format))
             .unwrap_or_else(|| "<none>".to_string())
     );
+}
+
+fn output_hook_summary(hook: &config::OutputHookConfig) -> String {
+    if hook.items.is_empty() {
+        "<none>".to_string()
+    } else {
+        hook.items
+            .iter()
+            .map(|item| match item {
+                config::OutputItemConfig::Text(_) => "text",
+                config::OutputItemConfig::Command(_) => "command",
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
 }
 
 fn line_key_name(line: LineKey) -> &'static str {

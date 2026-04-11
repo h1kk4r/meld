@@ -4,7 +4,7 @@ This document covers update and production checks.
 
 ## Update
 
-Update binary and config:
+Update only the binary:
 
 ```bash
 make update
@@ -14,6 +14,20 @@ Equivalent script:
 
 ```bash
 ./scripts/update.sh
+```
+
+This does not rewrite `~/.config/meld/init.lua`.
+
+Update the binary and explicitly regenerate the config:
+
+```bash
+make update-with-config
+```
+
+Equivalent script:
+
+```bash
+./scripts/update.sh --update-config
 ```
 
 Update only the config:
@@ -106,4 +120,5 @@ To verify an update flow:
 tmpdir=$(mktemp -d)
 ./scripts/install.sh --no-build --bin-dir "$tmpdir/bin" --config-dir "$tmpdir/config"
 ./scripts/update.sh --no-build --bin-dir "$tmpdir/bin" --config-dir "$tmpdir/config"
+./scripts/update.sh --no-build --bin-dir "$tmpdir/bin" --config-dir "$tmpdir/config" --update-config
 ```

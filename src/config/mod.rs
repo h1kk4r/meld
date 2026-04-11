@@ -13,7 +13,10 @@ use directories::ProjectDirs;
 use crate::error::{AppError, AppResult};
 use parser::parse_source;
 
-pub use schema::{AppConfig, ConfigLoadOptions, ConfigPathResolution, LineKey, LoadedConfig};
+pub use schema::{
+    AppConfig, ConfigLoadOptions, ConfigPathResolution, LineKey, LoadedConfig, OutputConfig,
+    OutputHookConfig, OutputItemConfig,
+};
 
 pub fn load(current_dir: &Path, options: &ConfigLoadOptions) -> AppResult<LoadedConfig> {
     load_internal(current_dir, options, true)

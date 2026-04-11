@@ -11,7 +11,7 @@ use crate::render::image::{ImageConfig, ImageCropMode};
 use crate::render::logo::{LogoConfig, LogoPreset, LogoSize};
 use crate::render::style::{ColorSpec, TextCase, TextColors};
 
-use super::schema::LineLabels;
+use super::schema::{LineLabels, OutputConfig, OutputHookConfig, OutputItemConfig};
 use super::{AppConfig, LineKey};
 
 pub(crate) fn render(config: &AppConfig) -> String {
@@ -42,6 +42,7 @@ pub(crate) fn render(config: &AppConfig) -> String {
 
     render_layout_section(&mut output, config);
     render_text_section(&mut output, config);
+    render_output_section(&mut output, &config.output);
     render_colors_section(&mut output, &config.colors);
     render_logo_section(&mut output, &config.logo);
     render_image_section(&mut output, &config.image);
@@ -110,6 +111,83 @@ fn render_text_section(output: &mut String, config: &AppConfig) {
     .unwrap();
     writeln!(output, "}}").unwrap();
     writeln!(output).unwrap();
+}
+
+fn render_output_section(output: &mut String, config: &OutputConfig) {
+    writeln!(output, "-- Extra output hooks").unwrap();
+    writeln!(
+        output,
+        "-- Add plain text or shell command output before/after the Meld block."
+    )
+    .unwrap();
+    writeln!(output, "--").unwrap();
+    writeln!(
+        output,
+        "-- Commands run through `$SHELL -lc` during normal rendering."
+    )
+    .unwrap();
+    writeln!(
+        output,
+        "-- Prefer this section over calling `print()` directly in init.lua:"
+    )
+    .unwrap();
+    writeln!(
+        output,
+        "-- direct prints happen while the config is parsed and can pollute diagnostics."
+    )
+    .unwrap();
+    writeln!(output, "--").unwrap();
+    writeln!(output, "-- Ordered hook items:").unwrap();
+    writeln!(output, "--   \"hello\"").unwrap();
+    writeln!(output, "--   {{ command = \"ls\" }}").unwrap();
+    writeln!(output, "config.output = {{").unwrap();
+    render_output_hook(output, "before", &config.before);
+    render_output_hook(output, "after", &config.after);
+    writeln!(output, "}}").unwrap();
+    writeln!(output).unwrap();
+}
+
+fn render_output_hook(output: &mut String, key: &str, hook: &OutputHookConfig) {
+    writeln!(output, "  {} = {{", key).unwrap();
+
+    if hook.items.is_empty() {
+        writeln!(output, "    -- {},", lua_inline_string("hello")).unwrap();
+        writeln!(
+            output,
+            "    -- {{ command = {} }},",
+            lua_inline_string("date '+%H:%M'")
+        )
+        .unwrap();
+    } else {
+        for item in &hook.items {
+            match item {
+                OutputItemConfig::Text(text) => {
+                    writeln!(output, "    {},", lua_output_text_value(text)).unwrap();
+                }
+                OutputItemConfig::Command(command) => {
+                    writeln!(
+                        output,
+                        "    {{ command = {} }},",
+                        lua_inline_string(command)
+                    )
+                    .unwrap();
+                }
+            }
+        }
+    }
+
+    writeln!(output, "  }},").unwrap();
+}
+
+fn lua_output_text_value(value: &str) -> String {
+    if value
+        .chars()
+        .all(|character| matches!(character, '\r' | '\n'))
+    {
+        return lua_inline_string(value);
+    }
+
+    lua_string_value(value, 4)
 }
 
 fn render_colors_section(output: &mut String, colors: &TextColors) {
@@ -822,6 +900,7 @@ mod tests {
         assert!(output.contains("config.order = {"));
         assert!(output.contains("\"spotify\""));
         assert!(output.contains("case = \"upper\""));
+        assert!(output.contains("config.output = {"));
         assert!(output.contains("format = \"$artist :: $track\""));
         assert!(output.contains("label = \"blue\""));
     }

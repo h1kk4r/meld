@@ -2,8 +2,8 @@
 
 # Production updater for local builds.
 #
-# The binary is rebuilt in release mode, then the config is regenerated through
-# `meld --print-config` so supported user values survive template updates.
+# By default this script only updates the release binary. Config regeneration is
+# opt-in because even merge-like generated updates can disturb hand-edited Lua.
 
 set -eu
 
@@ -14,7 +14,7 @@ PREFIX="${PREFIX:-$HOME/.local}"
 BIN_DIR="${BIN_DIR:-$PREFIX/bin}"
 CONFIG_DIR="${CONFIG_DIR:-$HOME/.config/meld}"
 BUILD=1
-UPDATE_CONFIG=1
+UPDATE_CONFIG=0
 NO_BACKUP=0
 
 usage() {
@@ -25,9 +25,10 @@ Options:
   --no-build         Reuse an existing build artifact
   --prefix PATH      Set the install prefix (default: \$HOME/.local)
   --bin-dir PATH     Install the binary directly into PATH
-  --config-dir PATH  Update PATH/init.lua
-  --skip-config      Update only the binary
-  --no-backup        Rewrite init.lua without creating a backup
+  --config-dir PATH  Config directory used with --update-config
+  --update-config    Also regenerate PATH/init.lua after updating the binary
+  --skip-config      Deprecated no-op; config updates are opt-in now
+  --no-backup        Rewrite init.lua without backup when --update-config is used
   --help             Show this help
 EOF
 }
@@ -50,6 +51,10 @@ while [ "$#" -gt 0 ]; do
     --config-dir)
       CONFIG_DIR=$2
       shift 2
+      ;;
+    --update-config)
+      UPDATE_CONFIG=1
+      shift
       ;;
     --skip-config)
       UPDATE_CONFIG=0
@@ -100,6 +105,9 @@ if [ "$UPDATE_CONFIG" -eq 1 ]; then
   else
     "$SCRIPT_DIR/update-config.sh" --config-dir "$CONFIG_DIR" --bin "$BINARY_PATH"
   fi
+else
+  echo "config left unchanged: $CONFIG_DIR/init.lua"
+  echo "update config explicitly with: $0 --update-config"
 fi
 
 echo "verify with: $BIN_DIR/meld --diagnostics"

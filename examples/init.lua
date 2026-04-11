@@ -51,6 +51,35 @@ config.text = {
   case = "default",
 }
 
+-- Extra output hooks
+-- Add plain text or shell command output before/after the whole Meld block.
+--
+-- This is the safe place for "hello before fetch" style output.
+-- A raw `print("hello")` in this init.lua may run while Meld is only parsing
+-- the config, so it can leak into diagnostics or config regeneration.
+--
+-- Commands run through:
+--   $SHELL -lc "<command>"
+--
+-- Use an ordered list when you need multiple items:
+--   "plain text"
+--   { command = "shell command" }
+--
+-- Do not repeat `text = ...` keys in the same table: Lua keeps only the last
+-- repeated key before Meld can read it.
+config.output = {
+  before = {
+    -- "hello",
+    -- { command = "date '+%H:%M'" },
+    -- "this text appears after the command",
+  },
+  after = {
+    -- "\n", -- add one empty line after the whole Meld block
+    -- "bye",
+    -- { command = "printf 'done'" },
+  },
+}
+
 -- Text colors
 -- Color each part of the rendered line separately.
 --

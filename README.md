@@ -8,6 +8,7 @@ It collects system, Git, terminal, battery, display, package and Spotify data, t
 
 - Lua configuration through `~/.config/meld/init.lua`
 - Configurable line order, labels, separators, text case and colors
+- Optional text or shell command output before/after the rendered block
 - macOS ASCII logo preset with custom text-logo support
 - WezTerm image backend with ASCII fallback
 - Spotify line support and optional current-track cover art
@@ -46,6 +47,7 @@ make build
 make test
 make install
 make update
+make update-with-config
 make update-config
 make diagnostics
 make uninstall
@@ -82,7 +84,22 @@ A timestamped backup is created before replacement.
 
 ## Update
 
-`make update` and `./scripts/update.sh` rebuild the release binary, reinstall it, and update the config.
+`make update` and `./scripts/update.sh` rebuild the release binary and reinstall it.
+
+They do not rewrite `~/.config/meld/init.lua` by default.
+
+To update the binary and regenerate the config in one explicit step:
+
+```bash
+./scripts/update.sh --update-config
+make update-with-config
+```
+
+To update only the config:
+
+```bash
+make update-config
+```
 
 The config update is not a blind copy. `scripts/update-config.sh` asks the current `meld` binary to render a fresh documented config through `meld --print-config`, using values from your existing `init.lua`.
 
