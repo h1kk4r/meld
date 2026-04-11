@@ -10,7 +10,7 @@ It collects system, Git, terminal, battery, display, package and Spotify data, t
 - Configurable line order, labels, separators, text case and colors
 - Optional text or shell command output before/after the rendered block
 - macOS ASCII logo preset with custom text-logo support
-- WezTerm image backend with ASCII fallback
+- WezTerm image backend with ASCII fallback and auto-height mode
 - Spotify line support and optional current-track cover art
 - ANSI color blocks
 - Diagnostics for config path, requested fields and visual backend selection

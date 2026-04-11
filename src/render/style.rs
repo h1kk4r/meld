@@ -89,11 +89,78 @@ pub fn colorize(text: &str, color: Option<ColorSpec>) -> String {
 }
 
 pub fn apply_case(text: &str, text_case: TextCase) -> String {
-    match text_case {
-        TextCase::Default => text.to_string(),
-        TextCase::Lower => text.to_lowercase(),
-        TextCase::Upper => text.to_uppercase(),
+    if text_case == TextCase::Default {
+        return text.to_string();
     }
+
+    let bytes = text.as_bytes();
+    let mut output = String::with_capacity(text.len());
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index] == 0x1b {
+            if let Some(end) = ansi_escape_end(bytes, index) {
+                output.push_str(&text[index..end]);
+                index = end;
+                continue;
+            }
+        }
+
+        let character = text[index..].chars().next().unwrap();
+
+        match text_case {
+            TextCase::Default => output.push(character),
+            TextCase::Lower => output.extend(character.to_lowercase()),
+            TextCase::Upper => output.extend(character.to_uppercase()),
+        }
+
+        index += character.len_utf8();
+    }
+
+    output
+}
+
+fn ansi_escape_end(bytes: &[u8], start: usize) -> Option<usize> {
+    let next = *bytes.get(start + 1)?;
+
+    match next {
+        b'[' => csi_escape_end(bytes, start),
+        b']' => osc_escape_end(bytes, start),
+        _ => Some((start + 2).min(bytes.len())),
+    }
+}
+
+fn csi_escape_end(bytes: &[u8], start: usize) -> Option<usize> {
+    let mut index = start + 2;
+
+    while index < bytes.len() {
+        let byte = bytes[index];
+        index += 1;
+
+        if byte.is_ascii_alphabetic() {
+            return Some(index);
+        }
+    }
+
+    Some(bytes.len())
+}
+
+fn osc_escape_end(bytes: &[u8], start: usize) -> Option<usize> {
+    let mut index = start + 2;
+
+    while index < bytes.len() {
+        if bytes[index] == 0x07 {
+            return Some(index + 1);
+        }
+
+        if bytes[index] == 0x1b && bytes.get(index + 1) == Some(&b'\\') {
+            return Some(index + 2);
+        }
+
+        index += 1;
+    }
+
+    Some(bytes.len())
 }
 
 pub fn visible_width(text: &str) -> usize {
@@ -162,5 +229,20 @@ mod tests {
         assert_eq!(apply_case("Shell", TextCase::Lower), "shell");
         assert_eq!(apply_case("Shell", TextCase::Upper), "SHELL");
         assert_eq!(apply_case("Shell", TextCase::Default), "Shell");
+    }
+
+    #[test]
+    fn applies_case_without_touching_ansi_sequences() {
+        assert_eq!(
+            apply_case("\u{1b}[31msh\u{1b}[0m", TextCase::Upper),
+            "\u{1b}[31mSH\u{1b}[0m"
+        );
+        assert_eq!(
+            apply_case(
+                "\u{1b}]8;;https://example.com\u{7}Link\u{1b}]8;;\u{7}",
+                TextCase::Upper
+            ),
+            "\u{1b}]8;;https://example.com\u{7}LINK\u{1b}]8;;\u{7}"
+        );
     }
 }

@@ -22,13 +22,16 @@ pub fn render(
 ) -> AppResult<String> {
     let mut info_lines = layout::render_lines(lines, layout_config, text_colors, text_style);
     info_lines.extend(blocks::render(blocks_config));
+    let auto_image_height = info_lines.len();
 
     for kind in backend::plan(spotify_config, image_config, logo_config).priority {
         match kind {
             VisualBackendKind::SpotifyCover => {
                 if let Some(spotify) = spotify {
                     if let Some(path) = spotify.cover_path() {
-                        if let Ok(Some(image)) = image::render_path(image_config, &path) {
+                        if let Ok(Some(image)) =
+                            image::render_path(image_config, &path, auto_image_height)
+                        {
                             let output =
                                 visual::compose(&image.placeholder, &info_lines, image.padding);
                             let line_count = output.lines().count();
@@ -40,7 +43,7 @@ pub fn render(
                 }
             }
             VisualBackendKind::Image => {
-                if let Ok(Some(image)) = image::render(image_config) {
+                if let Ok(Some(image)) = image::render(image_config, auto_image_height) {
                     let output = visual::compose(&image.placeholder, &info_lines, image.padding);
                     let line_count = output.lines().count();
                     let overlay = image::overlay_sequence(&image.overlay, line_count);

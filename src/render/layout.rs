@@ -188,6 +188,23 @@ mod tests {
     }
 
     #[test]
+    fn applies_case_without_breaking_ansi_colored_labels() {
+        let lines = vec![InfoLine::new("\u{1b}[31msh\u{1b}[0m", "fish")];
+        let text_style = TextStyleConfig {
+            case: TextCase::Upper,
+        };
+
+        let output = render_lines(
+            &lines,
+            &LayoutConfig::default(),
+            &TextColors::default(),
+            &text_style,
+        );
+
+        assert_eq!(output[0], "\u{1b}[31mSH\u{1b}[0m : FISH");
+    }
+
+    #[test]
     fn pad_visible_uses_display_width_instead_of_ansi_byte_length() {
         let padded = pad_visible("\u{1b}[31mkr\u{1b}[0m", 3);
 

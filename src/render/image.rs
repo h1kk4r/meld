@@ -16,9 +16,15 @@ const DEFAULT_CELL_HEIGHT_PX: f64 = 16.0;
 pub struct ImageConfig {
     pub enabled: bool,
     pub path: Option<PathBuf>,
-    pub height: usize,
+    pub height: ImageHeight,
     pub crop: ImageCropMode,
     pub padding: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageHeight {
+    Fixed(usize),
+    Auto,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,7 +51,7 @@ impl Default for ImageConfig {
         Self {
             enabled: false,
             path: None,
-            height: 10,
+            height: ImageHeight::Fixed(10),
             crop: ImageCropMode::Center,
             padding: 3,
         }
@@ -57,6 +63,22 @@ impl Default for CellGeometry {
         Self {
             width_px: DEFAULT_CELL_WIDTH_PX,
             height_px: DEFAULT_CELL_HEIGHT_PX,
+        }
+    }
+}
+
+impl ImageHeight {
+    pub fn from_name(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "auto" | "content" | "info" | "text" => Some(Self::Auto),
+            _ => None,
+        }
+    }
+
+    pub fn rows(self, auto_rows: usize) -> usize {
+        match self {
+            Self::Fixed(rows) => rows.max(1),
+            Self::Auto => auto_rows.max(1),
         }
     }
 }
@@ -81,7 +103,7 @@ impl ImageConfig {
     }
 }
 
-pub fn render(config: &ImageConfig) -> AppResult<Option<RenderedImage>> {
+pub fn render(config: &ImageConfig, auto_height_rows: usize) -> AppResult<Option<RenderedImage>> {
     if !config.enabled {
         return Ok(None);
     }
@@ -92,10 +114,14 @@ pub fn render(config: &ImageConfig) -> AppResult<Option<RenderedImage>> {
         ));
     };
 
-    render_path(config, path)
+    render_path(config, path, auto_height_rows)
 }
 
-pub fn render_path(config: &ImageConfig, path: &Path) -> AppResult<Option<RenderedImage>> {
+pub fn render_path(
+    config: &ImageConfig,
+    path: &Path,
+    auto_height_rows: usize,
+) -> AppResult<Option<RenderedImage>> {
     if !is_wezterm_session() {
         return Ok(None);
     }
@@ -109,7 +135,7 @@ pub fn render_path(config: &ImageConfig, path: &Path) -> AppResult<Option<Render
 
     let source = image::open(path)?;
     let cell_geometry = current_cell_geometry();
-    let rows = config.height.max(1);
+    let rows = config.height.rows(auto_height_rows);
     let cols = estimate_width_cells(&source, rows, config.crop, cell_geometry);
     let prepared = preprocess(source, cols, rows, config.crop, cell_geometry);
     let overlay = wezterm_inline_image(&prepared, cols, rows)?;
@@ -244,8 +270,8 @@ fn wezterm_inline_image(
 #[cfg(test)]
 mod tests {
     use super::{
-        CellGeometry, ImageConfig, ImageCropMode, crop_to_aspect, estimate_width_cells,
-        overlay_sequence, wezterm_inline_image,
+        CellGeometry, ImageConfig, ImageCropMode, ImageHeight, crop_to_aspect,
+        estimate_width_cells, overlay_sequence, wezterm_inline_image,
     };
     use image::{DynamicImage, GenericImageView, RgbaImage};
     use std::path::Path;
@@ -273,6 +299,13 @@ mod tests {
             estimate_width_cells(&image, 8, ImageCropMode::Center, CellGeometry::default()),
             16
         );
+    }
+
+    #[test]
+    fn auto_height_uses_info_block_rows() {
+        assert_eq!(ImageHeight::Auto.rows(7), 7);
+        assert_eq!(ImageHeight::Auto.rows(0), 1);
+        assert_eq!(ImageHeight::Fixed(12).rows(7), 12);
     }
 
     #[test]

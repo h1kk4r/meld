@@ -231,6 +231,10 @@ fn print_diagnostics(current_dir: &std::path::Path, loaded: &LoadedConfig) {
         }
     );
     println!("Image Path        : {image_path}");
+    println!(
+        "Image Height      : {}",
+        image_height_summary(config.image.height)
+    );
     println!("Image Status      : {image_status}");
     println!(
         "Spotify Requested : {}",
@@ -268,6 +272,13 @@ fn output_hook_summary(hook: &config::OutputHookConfig) -> String {
             })
             .collect::<Vec<_>>()
             .join(", ")
+    }
+}
+
+fn image_height_summary(height: image::ImageHeight) -> String {
+    match height {
+        image::ImageHeight::Fixed(rows) => rows.to_string(),
+        image::ImageHeight::Auto => "auto".to_string(),
     }
 }
 

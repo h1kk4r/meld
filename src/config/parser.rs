@@ -8,7 +8,7 @@ use crate::modules::system::{
     KernelView, MemoryView, OsView, PackagesView, ShellView, SystemField, TerminalView, UptimeView,
 };
 use crate::render::blocks::ColorBlocksConfig;
-use crate::render::image::{ImageConfig, ImageCropMode};
+use crate::render::image::{ImageConfig, ImageCropMode, ImageHeight};
 use crate::render::layout::LayoutConfig;
 use crate::render::logo::{LogoConfig, LogoPreset, LogoSize};
 use crate::render::style::{ColorSpec, TextCase, TextColors, TextStyleConfig};
@@ -443,8 +443,8 @@ fn parse_image(image: &mut ImageConfig, value: Value) -> AppResult<()> {
                 image.path = Some(value.into());
             }
 
-            if let Some(value) = table.get::<Option<u32>>("height")? {
-                image.height = value as usize;
+            if let Some(value) = table.get::<Option<Value>>("height")? {
+                image.height = parse_image_height(value)?;
             }
 
             if let Some(value) = table.get::<Option<String>>("crop")? {
@@ -556,6 +556,32 @@ fn parse_logo_size(value: &str) -> AppResult<LogoSize> {
 fn parse_image_crop(value: &str) -> AppResult<ImageCropMode> {
     ImageCropMode::from_name(value)
         .ok_or_else(|| AppError::Config(format!("invalid image crop mode `{}` in init.lua", value)))
+}
+
+fn parse_image_height(value: Value) -> AppResult<ImageHeight> {
+    match value {
+        Value::Integer(number) => {
+            let rows = usize::try_from(number).map_err(|_| {
+                AppError::Config("`image.height` must be positive in init.lua".to_string())
+            })?;
+            Ok(ImageHeight::Fixed(rows.max(1)))
+        }
+        Value::Number(number) if number.fract() == 0.0 && number > 0.0 => {
+            Ok(ImageHeight::Fixed(number as usize))
+        }
+        Value::String(text) => {
+            let value = text.to_str()?;
+            ImageHeight::from_name(value.as_ref()).ok_or_else(|| {
+                AppError::Config(format!(
+                    "invalid image height `{}` in init.lua; use a number or \"auto\"",
+                    value
+                ))
+            })
+        }
+        _ => Err(AppError::Config(
+            "`image.height` must be a number or \"auto\" in init.lua".to_string(),
+        )),
+    }
 }
 
 fn parse_git_view_value(value: Value) -> AppResult<GitView> {
@@ -796,7 +822,7 @@ mod tests {
     use crate::modules::git::GitView;
     use crate::modules::spotify::SpotifyConfig;
     use crate::modules::system::{MemoryView, SystemField};
-    use crate::render::image::ImageCropMode;
+    use crate::render::image::{ImageCropMode, ImageHeight};
     use crate::render::logo::LogoSize;
     use crate::render::style::{ColorSpec, TextCase};
     use mlua::Lua;
@@ -1003,12 +1029,30 @@ return {
             config.image.path.as_deref(),
             Some(std::path::Path::new("logo.png"))
         );
-        assert_eq!(config.image.height, 12);
+        assert_eq!(config.image.height, ImageHeight::Fixed(12));
         assert_eq!(config.image.crop, ImageCropMode::None);
         assert_eq!(config.image.padding, 5);
         assert!(config.blocks.enabled);
         assert_eq!(config.blocks.width, 2);
         assert_eq!(config.blocks.height, 2);
         assert_eq!(config.blocks.symbol, "[]");
+    }
+
+    #[test]
+    fn parses_auto_image_height() {
+        let config = parse_source(
+            r#"
+return {
+  image = {
+    enabled = true,
+    height = "auto",
+  },
+}
+"#,
+            "init.lua",
+        )
+        .unwrap();
+
+        assert_eq!(config.image.height, ImageHeight::Auto);
     }
 }

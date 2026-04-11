@@ -7,7 +7,7 @@ use crate::modules::system::{
     PackagesView, ShellView, SystemField, SystemRenderConfig, TerminalView, UptimeView,
 };
 use crate::render::blocks::ColorBlocksConfig;
-use crate::render::image::{ImageConfig, ImageCropMode};
+use crate::render::image::{ImageConfig, ImageCropMode, ImageHeight};
 use crate::render::logo::{LogoConfig, LogoPreset, LogoSize};
 use crate::render::style::{ColorSpec, TextCase, TextColors};
 
@@ -307,7 +307,12 @@ fn render_image_section(output: &mut String, image: &ImageConfig) {
     .unwrap();
     writeln!(output, "--").unwrap();
     writeln!(output, "-- height:").unwrap();
-    writeln!(output, "--   target height in terminal rows").unwrap();
+    writeln!(output, "--   number -> fixed height in terminal rows").unwrap();
+    writeln!(
+        output,
+        "--   \"auto\" -> match the rendered info block height"
+    )
+    .unwrap();
     writeln!(output, "--").unwrap();
     writeln!(output, "-- crop:").unwrap();
     writeln!(
@@ -337,7 +342,7 @@ fn render_image_section(output: &mut String, image: &ImageConfig) {
         )
         .unwrap();
     }
-    writeln!(output, "  height = {},", image.height).unwrap();
+    writeln!(output, "  height = {},", lua_image_height(image.height)).unwrap();
     writeln!(
         output,
         "  crop = {},",
@@ -766,6 +771,13 @@ fn image_crop_name(value: ImageCropMode) -> &'static str {
     match value {
         ImageCropMode::Center => "center",
         ImageCropMode::None => "none",
+    }
+}
+
+fn lua_image_height(value: ImageHeight) -> String {
+    match value {
+        ImageHeight::Fixed(rows) => rows.to_string(),
+        ImageHeight::Auto => lua_inline_string("auto"),
     }
 }
 

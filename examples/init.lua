@@ -125,7 +125,8 @@ config.logo = {
 --   absolute path, or a path relative to this init.lua file
 --
 -- height:
---   target height in terminal rows
+--   number -> fixed height in terminal rows
+--   "auto" -> match the rendered info block height
 --
 -- crop:
 --   "center" -> center-crop to a square-like fetch slot
@@ -138,7 +139,7 @@ config.logo = {
 -- config.image = {
 --   enabled = true,
 --   path = "assets/avatar.png",
---   height = 10,
+--   height = "auto",
 --   crop = "center",
 --   padding = 3,
 -- }
@@ -263,6 +264,9 @@ config.git = "branch_or_commit"
 -- cover_as_image:
 --   true  -> use the current cover art instead of the regular image
 --   false -> keep the regular image backend
+--
+-- Tip:
+--   Set config.image.height = "auto" to make the cover match the info block.
 config.spotify = {
   format = "$artist — $track",
   cover_as_image = false,

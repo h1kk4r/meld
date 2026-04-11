@@ -215,13 +215,15 @@ config.logo.text = table.concat({
 config.image = {
   enabled = true,
   path = "assets/avatar.png",
-  height = 10,
+  height = "auto",
   crop = "center",
   padding = 3,
 }
 ```
 
 Relative paths are resolved relative to the directory containing `init.lua`.
+
+`height` can be a fixed number of terminal rows or `"auto"`. With `"auto"`, WezTerm images and Spotify cover art match the rendered info block height on the right, including color blocks.
 
 Crop values:
 
@@ -248,6 +250,8 @@ Supported placeholders:
 To show the Spotify row, include `"spotify"` in `config.order`.
 
 If `cover_as_image = true`, the current track cover is tried before the normal image/logo backends.
+
+Spotify cover art uses `config.image.height`, so `height = "auto"` makes the cover follow the height of the text block instead of a fixed row count.
 
 ## Color Blocks
 

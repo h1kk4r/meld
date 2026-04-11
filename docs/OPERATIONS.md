@@ -94,6 +94,7 @@ Diagnostics include:
 - requested system fields
 - visual backend priority
 - image path/status
+- image height mode
 - Spotify status
 
 ## Production Checks
