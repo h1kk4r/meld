@@ -261,6 +261,13 @@ config.git = "branch_or_commit"
 
 -- Spotify
 -- Default format: "$artist - $track"
+-- client_id:
+--   your Spotify app client ID; run `meld --spotify-login` after setting it
+--   (`api_key` is also accepted as an alias)
+--   the OAuth token is saved to spotify-token.json and read automatically
+--   API timeouts fall back silently, so normal output does not wait long
+-- redirect_uri:
+--   add the same URI to the Spotify app settings
 -- cover_as_image:
 --   true  -> use the current cover art instead of the regular image
 --   false -> keep the regular image backend
@@ -268,6 +275,8 @@ config.git = "branch_or_commit"
 -- Tip:
 --   Set config.image.height = "auto" to make the cover match the info block.
 config.spotify = {
+  client_id = "",
+  redirect_uri = "http://127.0.0.1:8888/callback",
   format = "$artist — $track",
   cover_as_image = false,
 }

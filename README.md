@@ -11,7 +11,7 @@ It collects system, Git, terminal, battery, display, package and Spotify data, t
 - Optional text or shell command output before/after the rendered block
 - macOS ASCII logo preset with custom text-logo support
 - WezTerm image backend with ASCII fallback and auto-height mode
-- Spotify line support and optional current-track cover art
+- Spotify line support via Web API, with local macOS fallback and optional current-track cover art
 - ANSI color blocks
 - Diagnostics for config path, requested fields and visual backend selection
 - Release-only install and update scripts
@@ -61,6 +61,7 @@ meld --config /path/to/init.lua
 meld --show-config-path
 meld --diagnostics
 meld --print-config
+meld --spotify-login
 ```
 
 ## Install

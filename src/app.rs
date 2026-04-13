@@ -1,4 +1,5 @@
 use std::env;
+use std::path::{Path, PathBuf};
 use std::thread;
 
 use crate::cli::Cli;
@@ -41,6 +42,11 @@ pub fn run(cli: Cli) -> AppResult<()> {
 
     let loaded = config::load(&current_dir, &load_options)?;
 
+    if cli.spotify_login {
+        login_spotify(&current_dir, &loaded)?;
+        return Ok(());
+    }
+
     if cli.diagnostics {
         print_diagnostics(&current_dir, &loaded);
         return Ok(());
@@ -48,6 +54,7 @@ pub fn run(cli: Cli) -> AppResult<()> {
 
     let config = &loaded.config;
     let current_dir_for_git = current_dir.clone();
+    let config_dir = config_dir(&current_dir, &loaded);
     let should_collect_git = config.order.contains(&LineKey::Git);
     let should_collect_spotify =
         config.order.contains(&LineKey::Spotify) || config.spotify.cover_as_image;
@@ -59,7 +66,10 @@ pub fn run(cli: Cli) -> AppResult<()> {
         let requested_fields = requested_system_fields.clone();
         thread::spawn(move || SystemProfile::collect_requested(&requested_fields))
     });
-    let spotify_handle = should_collect_spotify.then(|| thread::spawn(SpotifyInfo::inspect));
+    let spotify_handle = should_collect_spotify.then(|| {
+        let spotify_config = config.spotify.clone();
+        thread::spawn(move || SpotifyInfo::inspect(&spotify_config, Some(&config_dir)))
+    });
 
     let git = git_handle.and_then(join_handle);
     let system = system_handle.and_then(join_handle);
@@ -100,8 +110,27 @@ fn configured_line(line_key: LineKey, mut line: InfoLine, config: &config::AppCo
     line
 }
 
+fn login_spotify(current_dir: &Path, loaded: &LoadedConfig) -> AppResult<()> {
+    let config_dir = config_dir(current_dir, loaded);
+    let token_path = SpotifyInfo::login(&loaded.config.spotify, &config_dir)?;
+
+    println!("Spotify token saved: {}", token_path.display());
+
+    Ok(())
+}
+
+fn config_dir(current_dir: &Path, loaded: &LoadedConfig) -> PathBuf {
+    loaded
+        .source_path
+        .as_ref()
+        .or_else(|| loaded.candidate_paths.first())
+        .and_then(|path| path.parent())
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| current_dir.to_path_buf())
+}
+
 fn build_lines(
-    current_dir: &std::path::Path,
+    current_dir: &Path,
     config: &config::AppConfig,
     git: Option<&GitInfo>,
     system: Option<&SystemProfile>,
@@ -147,11 +176,12 @@ fn join_handle<T>(handle: thread::JoinHandle<T>) -> Option<T> {
     handle.join().ok()
 }
 
-fn print_diagnostics(current_dir: &std::path::Path, loaded: &LoadedConfig) {
+fn print_diagnostics(current_dir: &Path, loaded: &LoadedConfig) {
     let config = &loaded.config;
     let backend_plan = visual_backend::plan(&config.spotify, &config.image, &config.logo);
+    let config_dir = config_dir(current_dir, loaded);
     let spotify = (config.order.contains(&LineKey::Spotify) || config.spotify.cover_as_image)
-        .then(SpotifyInfo::inspect)
+        .then(|| SpotifyInfo::inspect(&config.spotify, Some(&config_dir)))
         .flatten();
     let requested_lines = config
         .order

@@ -234,6 +234,8 @@ Crop values:
 
 ```lua
 config.spotify = {
+  client_id = "your Spotify app client ID",
+  redirect_uri = "http://127.0.0.1:8888/callback",
   format = "$artist — $track",
   cover_as_image = true,
 }
@@ -248,6 +250,20 @@ Supported placeholders:
 - `$id`
 
 To show the Spotify row, include `"spotify"` in `config.order`.
+
+To use the Spotify Web API instead of the local macOS fallback, set `client_id`
+to your Spotify app client ID (`api_key` is also accepted as an alias), add the
+same `redirect_uri` to the app settings in the Spotify dashboard, then run:
+
+```bash
+meld --spotify-login
+```
+
+The login stores `spotify-token.json` next to `init.lua`; Meld reads this file
+automatically on later runs. If the client ID, token or Web API request is
+unavailable, Meld silently falls back to the local `osascript` lookup on macOS.
+Runtime Web API checks use a short timeout so Spotify network issues do not
+delay the rest of the output for long.
 
 If `cover_as_image = true`, the current track cover is tried before the normal image/logo backends.
 

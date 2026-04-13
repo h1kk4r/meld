@@ -495,6 +495,20 @@ fn parse_blocks(blocks: &mut ColorBlocksConfig, value: Value) -> AppResult<()> {
 fn parse_spotify(spotify: &mut SpotifyConfig, value: Value) -> AppResult<()> {
     match value {
         Value::Table(table) => {
+            if let Some(value) = table.get::<Option<String>>("api_key")? {
+                spotify.client_id = empty_string_to_none(value);
+            }
+
+            if let Some(value) = table.get::<Option<String>>("client_id")? {
+                spotify.client_id = empty_string_to_none(value);
+            }
+
+            if let Some(value) = table.get::<Option<String>>("redirect_uri")? {
+                if let Some(value) = empty_string_to_none(value) {
+                    spotify.redirect_uri = value;
+                }
+            }
+
             if let Some(value) = table.get::<Option<String>>("format")? {
                 spotify.format = value;
             }
@@ -509,6 +523,11 @@ fn parse_spotify(spotify: &mut SpotifyConfig, value: Value) -> AppResult<()> {
             "`spotify` must be a table in init.lua".to_string(),
         )),
     }
+}
+
+fn empty_string_to_none(value: String) -> Option<String> {
+    let trimmed = value.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
 fn parse_color_value(key: &str, value: Value) -> AppResult<Option<ColorSpec>> {
@@ -859,6 +878,7 @@ mod tests {
 return {
   git = "branch",
   spotify = {
+    client_id = "test-client",
     format = "$artist / $track",
     cover_as_image = true,
   },
@@ -882,6 +902,8 @@ return {
             SpotifyConfig {
                 format: "$artist / $track".to_string(),
                 cover_as_image: true,
+                client_id: Some("test-client".to_string()),
+                ..SpotifyConfig::default()
             }
         );
         assert_eq!(config.text_style.case, TextCase::Lower);
@@ -902,6 +924,28 @@ config.memory = "used_total"
 
         assert!(matches!(config.git_view, GitView::Branch));
         assert!(matches!(config.system_views.memory, MemoryView::UsedTotal));
+    }
+
+    #[test]
+    fn parses_spotify_api_key_alias() {
+        let config = parse_source(
+            r#"
+return {
+  spotify = {
+    api_key = "alias-client",
+    redirect_uri = "",
+  },
+}
+"#,
+            "init.lua",
+        )
+        .unwrap();
+
+        assert_eq!(config.spotify.client_id.as_deref(), Some("alias-client"));
+        assert_eq!(
+            config.spotify.redirect_uri,
+            SpotifyConfig::default().redirect_uri
+        );
     }
 
     #[test]

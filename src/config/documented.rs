@@ -373,7 +373,37 @@ fn render_spotify_section(output: &mut String, spotify: &SpotifyConfig) {
     writeln!(output, "--   $album").unwrap();
     writeln!(output, "--   $state").unwrap();
     writeln!(output, "--   $id").unwrap();
+    writeln!(output, "--").unwrap();
+    writeln!(
+        output,
+        "-- Set `client_id` to your Spotify app client ID (`api_key` is also accepted),"
+    )
+    .unwrap();
+    writeln!(output, "-- then run:").unwrap();
+    writeln!(output, "--   meld --spotify-login").unwrap();
+    writeln!(
+        output,
+        "-- The OAuth token is stored as spotify-token.json next to init.lua and read automatically."
+    )
+    .unwrap();
+    writeln!(
+        output,
+        "-- API timeouts fall back silently, so normal output does not wait long."
+    )
+    .unwrap();
     writeln!(output, "config.spotify = {{").unwrap();
+    writeln!(
+        output,
+        "  client_id = {},",
+        lua_optional_inline_string(spotify.client_id.as_deref())
+    )
+    .unwrap();
+    writeln!(
+        output,
+        "  redirect_uri = {},",
+        lua_inline_string(&spotify.redirect_uri)
+    )
+    .unwrap();
     writeln!(output, "  format = {},", lua_inline_string(&spotify.format)).unwrap();
     writeln!(
         output,
@@ -661,6 +691,12 @@ fn lua_bool(value: bool) -> &'static str {
 
 fn lua_inline_string(value: &str) -> String {
     format!("\"{}\"", escape_lua(value))
+}
+
+fn lua_optional_inline_string(value: Option<&str>) -> String {
+    value
+        .map(lua_inline_string)
+        .unwrap_or_else(|| "\"\"".to_string())
 }
 
 fn lua_string_value(value: &str, indent: usize) -> String {

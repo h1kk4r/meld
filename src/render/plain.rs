@@ -27,6 +27,10 @@ pub fn render(
     for kind in backend::plan(spotify_config, image_config, logo_config).priority {
         match kind {
             VisualBackendKind::SpotifyCover => {
+                if !image::is_wezterm_session() {
+                    continue;
+                }
+
                 if let Some(spotify) = spotify {
                     if let Some(path) = spotify.cover_path() {
                         if let Ok(Some(image)) =

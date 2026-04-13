@@ -23,4 +23,10 @@ pub struct Cli {
         help = "Print a documented init.lua using the current config values and exit"
     )]
     pub print_config: bool,
+
+    #[arg(
+        long,
+        help = "Log in to Spotify and cache the OAuth token next to init.lua"
+    )]
+    pub spotify_login: bool,
 }
