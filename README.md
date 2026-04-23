@@ -4,6 +4,8 @@
 
 It collects system, Git, terminal, battery, display, package and Spotify data, then renders it as a configurable terminal status block with optional ASCII art or WezTerm inline images.
 
+<img src="https://github.com/h1kk4r/meld/blob/main/scr/01.png">
+
 ## Features
 
 - Lua configuration through `~/.config/meld/init.lua`
